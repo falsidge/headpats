@@ -1,12 +1,10 @@
 package dev.enjarai.headpats.net;
 
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 
 public class ServerPayloadHandler {
@@ -30,6 +28,41 @@ public class ServerPayloadHandler {
                     .add(context.player().getId());
             petterMap.put(context.player().getId(), data.entityId());
             PacketDistributor.sendToAllPlayers(new PettingUpdateS2CPacket(context.player().getId(), data.entityId()));
+        }
+    }
+    public static void clearInvalid(Level level )
+    {
+        Map<Integer, List<Integer>> updatedMap = new HashMap<>();
+        List<Integer> toRemove = new ArrayList<>();
+        for (var entry : ServerPayloadHandler.petterMap.entrySet()) {
+            if (level.getEntity(entry.getKey()) == null)
+            {
+                toRemove.add(entry.getKey());
+                if (ServerPayloadHandler.pattingPlayerMap.containsKey(entry.getValue()))
+                {
+                    ServerPayloadHandler.pattingPlayerMap.get(entry.getValue()).remove(entry.getKey());
+                }
+            }
+        }
+        for (int removed : toRemove)
+        {
+            ServerPayloadHandler.petterMap.remove(removed);
+        }
+        List<Integer> toRemove1 = new ArrayList<>();
+        for (var entry : ServerPayloadHandler.pattingPlayerMap.entrySet())
+        {
+            if (entry.getValue().isEmpty() || level.getEntity(entry.getKey()) == null)
+            {
+                toRemove1.add(entry.getKey());
+            }
+            else
+            {
+                updatedMap.put(entry.getKey(), entry.getValue().stream().toList());
+            }
+        }
+        for (int removed : toRemove1)
+        {
+            ServerPayloadHandler.pattingPlayerMap.remove(removed);
         }
     }
 }

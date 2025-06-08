@@ -4,38 +4,61 @@ import dev.enjarai.headpats.Headpats;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.*;
+import javax.annotation.Nullable;
+import java.util.List;
+import java.util.Map;
 
 public class ClientPayloadHandler {
-    public static Set<Integer> petted = new HashSet<>();
-    public static Set<Integer> petters = new HashSet<>();
+    @Nullable
+    public static Map<Integer, List<Integer>> playerMap = null;
+    public static int retries=  0;
+
     public static void handleDataOnMain(final PettingSyncS2CPacket data, final IPayloadContext context) {
-//
-//        for (var player : context.player().level().players())
-//        {
-//
-//        }
-        Level level = context.player().level();
-        var playermap = data.pattingPlayerMap();
-        for (var entry : playermap.entrySet())
+        playerMap = data.pattingPlayerMap();
+        retries = 5;
+    }
+
+    public static void tick(Level level)
+    {
+        if (playerMap == null)
+            return;
+        Headpats.LOGGER.warn("received player map {}  {}", retries, playerMap);
+        boolean allSucceed = true;
+        for (var entry : playerMap.entrySet())
         {
             var entity = level.getEntity(entry.getKey());
+            Headpats.LOGGER.warn("considering  {}", entry.getKey());
+
             if (entity != null) {
+                Headpats.LOGGER.warn("adding player map {} {}", entry.getKey(), entry.getValue());
                 var component = entity.getData(Headpats.PETTING_COPMPONENT);
                 component.incomingPetters = entry.getValue().size();
                 for (var entityId : entry.getValue())
                 {
                     var otherentity = level.getEntity(entityId);
                     if (otherentity != null) {
-                        var othercomponent = entity.getData(Headpats.PETTING_COPMPONENT);
-                        othercomponent.petting = entry.getKey();
+                        var otherComponent = otherentity.getData(Headpats.PETTING_COPMPONENT);
+                        otherComponent.petting = entry.getKey();
+                    }
+                    else
+                    {
+                        allSucceed = false;
                     }
                 }
             }
+            else
+            {
+                allSucceed = false;
+            }
+        }
+        retries -= 1;
+        if (allSucceed || retries <= 0) {
+            playerMap = null;
+            retries = 0;
         }
     }
+
     public static void handleDataOnMain(final PettingUpdateS2CPacket data, final IPayloadContext context) {
-        // Do something with the data, on the main thread
         Level level = context.player().level();
         if (data.petting() == -1)
         {

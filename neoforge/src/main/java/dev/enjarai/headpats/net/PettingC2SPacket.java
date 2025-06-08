@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 public record PettingC2SPacket(int entityId) implements CustomPacketPayload {
 
-    public static final CustomPacketPayload.Type<PettingC2SPacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Headpats.MODID, "my_data"));
+    public static final CustomPacketPayload.Type<PettingC2SPacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Headpats.MODID, "send_pats"));
     public static final StreamCodec<FriendlyByteBuf, PettingC2SPacket> PACKET_CODEC = StreamCodec.composite(
             ByteBufCodecs.INT, PettingC2SPacket::entityId,
             PettingC2SPacket::new

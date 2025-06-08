@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -14,6 +15,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -22,6 +24,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -60,6 +65,7 @@ public class Headpats
         {
             var client = Minecraft.getInstance();
             if (client.player != null) {
+                ClientPayloadHandler.tick(client.level);
                 var pettingComponent = client.player.getData(PETTING_COPMPONENT);
                 pettingComponent.clientTick(client.player);
                 if (pettingComponent.isPetting()) {
@@ -76,15 +82,20 @@ public class Headpats
                 }
             }
         }
-        @SubscribeEvent
-        public static void playerJoin(final PlayerEvent.PlayerLoggedInEvent event)
-        {
+    }
+
+    @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.GAME)
+    public static class ServerGameEvents
+    {
+        @SubscribeEvent(priority = EventPriority.LOWEST)
+        public static void onSpawn(EntityJoinLevelEvent event) {
             if (!event.getEntity().level().isClientSide() && event.getEntity() instanceof ServerPlayer player){
+                ServerPayloadHandler.clearInvalid(event.getEntity().level());
+                LOGGER.warn("{} sending to new player", ServerPayloadHandler.pattingPlayerMap);
                 PacketDistributor.sendToPlayer(player, new PettingSyncS2CPacket(ServerPayloadHandler.pattingPlayerMap.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, (e)->e.getValue().stream().toList(), (x, y)->y))));
             }
         }
     }
-
 
     @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD)
     public static class CommonModEvents {
@@ -107,6 +118,5 @@ public class Headpats
                     ClientPayloadHandler::handleDataOnMain
             );
         }
-
     }
 }
